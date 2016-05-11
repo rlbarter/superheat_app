@@ -4,7 +4,6 @@ library(superheat)
 library(shinyjs)
 library(cluster)
 
-source("helper.R")
 
 # iris data
 iris.dat  <- iris[, -5]
