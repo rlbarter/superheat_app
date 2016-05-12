@@ -14,6 +14,9 @@ states <- !(rownames(votes.repub) %in% c("Wyoming", "Hawaii", "Alaska"))
 votes.dat <- votes.repub[states, -c(1:15)]
 
 
+rowMembershipInput <- function() NULL
+colMembershipInput <- function() NULL
+
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
@@ -83,6 +86,8 @@ shinyServer(function(input, output) {
   })
   
 
+
+  
   rowMembershipInput <- reactive({
     if (input$n.clusters.rows != "none") {
       return(kmeans(datasetInput(), centers = input$n.clusters.rows)$cluster)
@@ -98,7 +103,26 @@ shinyServer(function(input, output) {
   })
 
   colorsInput <- reactive({
-    brewer.pal(9, input$brewer)
+    if (!input$manual_col) {
+      pal <- brewer.pal(9, input$brewer)
+      if (input$reverse_col_order)
+        pal <- pal[9:1]
+    }
+    else {
+      pal <- c(input$low_col,
+               input$med_col,
+               input$high_col)
+    }
+    pal
+  })
+  
+  colorsMidpoint <- reactive({
+    if (input$manual_col) {
+      pal.values <- c(0, input$midpoint, 1)
+    } else{
+      pal.values <- NULL
+      }
+    pal.values
   })
 
   smoothInput <- reactive({
@@ -108,9 +132,27 @@ shinyServer(function(input, output) {
 
   
   
+  output$download_row <- downloadHandler(
+    filename = function() {"row_membership.csv" },
+    content = function(file) {
+      write.csv(rowMembershipInput(), file)
+    }
+  )
   
   
-  output$superheat <- renderImage({
+  output$download_col <- downloadHandler(
+    filename = function() {"col_membership.csv" },
+    content = function(file) {
+      write.csv(colMembershipInput(), file)
+    }
+  )
+  
+  
+
+  
+  
+  output$superheat <-
+    renderImage({
    outfile <- tempfile(fileext = "tmp.png")
      png(outfile, 
         height = input$image_height,
@@ -121,6 +163,7 @@ shinyServer(function(input, output) {
               membership.cols = colMembershipInput(),
               
               heat.pal = colorsInput(),
+              heat.pal.values = colorsMidpoint(),
               smooth.heat = smoothInput(),
               
               left.text.angle = input$left_text_angle,
@@ -146,8 +189,49 @@ shinyServer(function(input, output) {
   list(src = outfile, height = input$image_height, width = input$image_width) }, 
   deleteFile = TRUE) 
   
+  
+  
+  
+  
 
-
+  output$save_png <- downloadHandler(
+    filename = function() { 'superheat.png' },
+    content = function(file) {
+      
+      png(filename = file, 
+          height = input$image_height,
+          width = input$image_width)
+      
+      superheat(X = datasetInput(),
+                
+                membership.rows = rowMembershipInput(),
+                membership.cols = colMembershipInput(),
+                
+                heat.pal = colorsInput(),
+                smooth.heat = smoothInput(),
+                
+                
+                left.text.angle = input$left_text_angle,
+                bottom.text.angle = input$bottom_text_angle,
+                left.text.size = input$left_text_size,
+                bottom.text.size = input$bottom_text_size,
+                left.heat.label = input$left_label,
+                bottom.heat.label = input$bottom_label,
+                left.label.size = input$left_label_size,
+                bottom.label.size = input$bottom_label_size,
+                
+                cluster.hline = input$hlines,
+                cluster.vline = input$vlines,
+                cluster.hline.size = input$line_size,
+                cluster.vline.size = input$line_size,
+                cluster.hline.col = input$line_col,
+                cluster.vline.col = input$line_col,
+                
+                legend.size = input$legend)
+      
+      dev.off()
+    }
+  )
 
 
 
